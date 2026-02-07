@@ -1,0 +1,40 @@
+{
+    "productName": "Persona Editor",
+    "version": "1.0.0",
+    "identifier": "com.mcp.persona-editor",
+    "build": {
+        "beforeDevCommand": "",
+        "devUrl": null,
+        "frontendDist": "ui"
+    },
+    "app": {
+        "withGlobalTauri": true,
+        "windows": [
+            {
+                "title": "Persona Editor",
+                "hiddenTitle": false,
+                "titleBarStyle": "Overlay",
+                "width": 720,
+                "height": 560,
+                "resizable": true,
+                "fullscreen": false,
+                "alwaysOnTop": false,
+                "decorations": true,
+                "transparent": true,
+                "shadow": true,
+                "skipTaskbar": false,
+                "visible": true
+            }
+        ],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "../cockpit_hud/icons/icon.ico"
+        ]
+    }
+}

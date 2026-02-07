@@ -1,0 +1,42 @@
+{
+    "productName": "MCP Cockpit",
+    "version": "1.0.0",
+    "identifier": "com.mcp.cockpit",
+    "build": {
+        "beforeDevCommand": "",
+        "devUrl": null,
+        "frontendDist": "ui"
+    },
+    "app": {
+        "withGlobalTauri": true,
+        "windows": [
+            {
+                "title": "MCP Cockpit",
+                "hiddenTitle": true,
+                "titleBarStyle": "Overlay",
+                "width": 800,
+                "height": 120,
+                "resizable": false,
+                "fullscreen": false,
+                "alwaysOnTop": true,
+                "decorations": false,
+                "transparent": true,
+                "shadow": false,
+                "skipTaskbar": true,
+                "visible": true,
+                "x": 50,
+                "y": 50
+            }
+        ],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "icons/icon.ico"
+        ]
+    }
+}

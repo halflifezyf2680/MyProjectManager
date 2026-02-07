@@ -1,0 +1,15 @@
+﻿cargo :    Compiling persona-editor v0.1.0 (D:\AI_
+Project\MyProjectManager\mcp-server-go\internal\se
+rvices\persona_editor)
+所在位置 行:1 字符: 52
++ ... ARGO_TARGET_DIR="D:\AI_Project\temp_target";
+ cargo build 2>&1 | Out-F ...
++                                                 
+ ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   C 
+   ompiling pe...persona_editor):String) [], Rem  
+  oteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Finished `dev` profile [unoptimized + debuginf
+o] target(s) in 14.00s

@@ -1,0 +1,53 @@
+﻿cargo :    Compiling proc-macro2 v1.0.106
+所在位置 行:1 字符: 1
++ cargo build > build_log_error.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Comp 
+   iling proc-macro2 v1.0.106:String) [], RemoteExc  
+  eption
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   Compiling quote v1.0.44
+   Compiling zerocopy v0.8.35
+   Compiling serde_core v1.0.228
+   Compiling icu_properties_data v2.1.2
+   Compiling siphasher v1.0.2
+   Compiling icu_normalizer_data v2.1.1
+   Compiling serde v1.0.228
+   Compiling zmij v1.0.17
+   Compiling siphasher v0.3.11
+   Compiling version_check v0.9.5
+error: linker `link.exe` not found
+  |
+  = note: program not found
+
+note: the msvc targets depend on the msvc linker but 
+`link.exe` was not found
+
+note: please ensure that Visual Studio 2017 or later,
+ or Build Tools for Visual Studio were installed with
+ the Visual C++ option.
+
+note: VS Code is a different product, and is not suff
+icient.
+
+error: could not compile `icu_properties_data` (build
+ script) due to 1 previous error
+warning: build failed, waiting for other jobs to fini
+sh...
+error: could not compile `icu_normalizer_data` (build
+ script) due to 1 previous error
+error: could not compile `quote` (build script) due t
+o 1 previous error
+error: could not compile `proc-macro2` (build script)
+ due to 1 previous error
+error: could not compile `zmij` (build script) due to
+ 1 previous error
+error: could not compile `serde_core` (build script) 
+due to 1 previous error
+error: could not compile `serde_core` (build script) 
+due to 1 previous error
+error: could not compile `serde` (build script) due t
+o 1 previous error
+error: could not compile `zerocopy` (build script) du
+e to 1 previous error

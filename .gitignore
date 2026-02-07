@@ -1,0 +1,45 @@
+# System / IDE
+.vscode/
+.idea/
+.DS_Store
+*.log
+*.tmp
+
+# Python
+__pycache__/
+*.pyc
+
+# Rust
+target/
+**/target/
+
+# Node
+node_modules/
+
+# Project Specific - 发布版本不需要的数据
+.mcp-data/
+*.db
+*.sqlite
+*.db-shm
+*.db-wal
+bench_report*.json
+timestamp
+mpm_boot_config.json
+
+# 临时文件和测试数据
+test_*.json
+*.bak
+*_backup.*
+上下文总结.md
+project_timeline.html
+visualize_history.py
+
+# 用户配置和本地数据
+~/.mcp-cockpit/
+
+# dev-log (发布版本不需要)
+dev-log.md
+
+# Legacy (归档的代码，不需要发布)
+mcp-expert-server/
+dev-log-archive/
