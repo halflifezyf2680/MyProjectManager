@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>MCP Cockpit HUD</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --gemini-blue: #4285f4;
+            --gemini-red: #ea4335;
+            --gemini-yellow: #fbbc04;
+            --gemini-green: #34a853;
+            --gemini-purple: #a855f7;
+            --gemini-pink: #ec4899;
+
+            --bg-glass: rgba(15, 15, 20, 0.88);
+            --bg-glass-light: rgba(255, 255, 255, 0.08);
+            --border-subtle: rgba(255, 255, 255, 0.12);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-muted: rgba(255, 255, 255, 0.5);
+
+            --theme-primary: var(--gemini-blue);
+            --theme-secondary: var(--gemini-purple);
+
+            --transition-fast: 0.15s ease;
+            --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: rgba(0, 0, 0, 0) !important;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            /* 关键：整个窗口默认点击穿透 */
+            pointer-events: none;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            user-select: none;
+        }
+
+        #capsule-wrapper {
+            position: absolute;
+            top: 45px;
+            left: 45px;
+            padding: 2px;
+            border-radius: 20px;
+            background: linear-gradient(135deg,
+                    var(--theme-primary),
+                    var(--theme-secondary),
+                    var(--gemini-pink),
+                    var(--theme-primary));
+            background-size: 200% 200%;
+            animation: gradient-flow 6s ease infinite;
+            transition: background 0.5s ease, border-radius var(--transition-smooth), width var(--transition-smooth), height var(--transition-smooth);
+            /* 容器层穿透 */
+            pointer-events: none;
+            overflow: visible !important;
+        }
+
+        @keyframes gradient-flow {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        #capsule {
+            display: flex;
+            align-items: center;
+            height: 64px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border-radius: 18px;
+            padding: 0 12px;
+            gap: 12px;
+            transition: all var(--transition-smooth);
+            width: 140px;
+            position: relative;
+            /* 实际功能区拦截点击 */
+            pointer-events: auto;
+            /* 彻底解决截断: 允许溢出 */
+            overflow: visible !important;
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 🆕 收起状态变圆球 */
+        #capsule.collapsed {
+            width: 48px !important;
+            height: 48px !important;
+            border-radius: 50% !important;
+            padding: 0 !important;
+            justify-content: center;
+        }
+
+        #capsule.collapsed .grip,
+        #capsule.collapsed .status,
+        #capsule.collapsed .persona-container,
+        #capsule.collapsed .close-action {
+            display: none !important;
+        }
+
+        #capsule.collapsed .hook-indicator {
+            opacity: 1 !important;
+            transform: none !important;
+            border: none !important;
+            background: transparent !important;
+            min-width: auto !important;
+            padding: 0 !important;
+        }
+
+        /* 🆕 Unknown 状态红色报警 - 边框发光效果 */
+        #capsule-wrapper.alert {
+            background: linear-gradient(135deg, #ef4444, #dc2626, #b91c1c, #ef4444) !important;
+            animation: alert-glow 0.8s ease-in-out infinite !important;
+        }
+
+        @keyframes alert-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(239, 68, 68, 1), 0 0 35px rgba(239, 68, 68, 0.6);
+            }
+        }
+
+
+
+        .grip {
+            width: 28px;
+            height: 42px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--text-muted);
+            transition: var(--transition-fast);
+            cursor: move;
+            -webkit-app-region: drag;
+        }
+
+        .grip:hover {
+            color: var(--text-primary);
+            background: var(--bg-glass-light);
+        }
+
+        .grip svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .status {
+            display: flex;
+            flex-direction: column;
+            min-width: 90px;
+            flex-shrink: 0;
+            border-right: 1px solid var(--border-subtle);
+            padding-right: 12px;
+            justify-content: center;
+        }
+
+        .status-title {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--theme-primary);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+
+        .status-select {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gemini-green);
+            background: transparent;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            max-width: 90px;
+            text-shadow: 0 0 8px rgba(52, 168, 83, 0.3);
+        }
+
+        .status-select option {
+            background: #0f172a;
+            color: var(--text-primary);
+        }
+
+        .persona-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            opacity: 0;
+            transform: translateX(-10px);
+            transition: opacity 0.25s ease 0.1s, transform 0.25s ease 0.1s;
+        }
+
+        #capsule.expanded .persona-container {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .p-btn {
+            width: 60px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            /* 🆕 恢复交互：支持点击切换人格 */
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            background: transparent;
+            border: 1px solid transparent;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .p-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        /* 🆕 恢复 hover 和 active 交互效果 */
+        .p-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .p-btn:hover::before {
+            opacity: 1;
+        }
+
+        .p-btn.active {
+            background: linear-gradient(135deg,
+                    rgba(var(--btn-theme-rgb), 0.3),
+                    rgba(var(--btn-theme-rgb), 0.15));
+            border-color: var(--btn-theme);
+            box-shadow:
+                0 0 20px rgba(var(--btn-theme-rgb), 0.4),
+                0 0 40px rgba(var(--btn-theme-rgb), 0.2);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 15px rgba(var(--btn-theme-rgb), 0.4), 0 0 30px rgba(var(--btn-theme-rgb), 0.2);
+            }
+
+            50% {
+                box-shadow: 0 0 25px rgba(var(--btn-theme-rgb), 0.6), 0 0 50px rgba(var(--btn-theme-rgb), 0.35);
+            }
+        }
+
+        .p-icon {
+            font-size: 24px;
+            margin-bottom: 3px;
+            transition: transform var(--transition-fast);
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .p-btn:hover .p-icon {
+            transform: scale(1.15);
+        }
+
+        .p-btn.active .p-icon {
+            filter: drop-shadow(0 0 8px var(--btn-theme));
+        }
+
+        .p-label {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: 0.3px;
+            transition: color var(--transition-fast);
+        }
+
+        .p-btn:hover .p-label {
+            color: var(--text-secondary);
+        }
+
+        .p-btn.active .p-label {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .hook-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-width: 50px;
+            height: 42px;
+            border-radius: 10px;
+            background: var(--bg-glass-light);
+            border: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+            opacity: 0;
+            transform: translateX(-10px);
+            transition: opacity 0.25s ease 0.15s, transform 0.25s ease 0.15s;
+            padding: 0 10px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        #capsule.expanded .hook-indicator {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .hook-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .hook-dot.active {
+            background: var(--gemini-red);
+            box-shadow:
+                0 0 12px rgba(234, 67, 53, 0.6),
+                0 0 24px rgba(234, 67, 53, 0.3);
+            animation: hook-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes hook-pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.3);
+                opacity: 0.7;
+            }
+        }
+
+        .hook-count {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            min-width: 12px;
+            text-align: center;
+        }
+
+        .hook-dot.active+.hook-count {
+            color: var(--gemini-red);
+        }
+
+        /* 🆕 Hook Tooltip 悬停弹窗增强版 */
+        .hook-tooltip {
+            position: absolute;
+            top: calc(100% + 12px);
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 16px;
+            min-width: 280px;
+            background: rgba(15, 15, 22, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 14px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 99999;
+            pointer-events: auto;
+        }
+
+        .hook-indicator:hover .hook-tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .hook-tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 8px solid transparent;
+            border-bottom-color: rgba(15, 15, 22, 0.98);
+        }
+
+        .hook-tooltip-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--gemini-red);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .hook-tooltip-content {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+            /* 🆕 支持滚动 */
+            max-height: 160px;
+            overflow-y: auto;
+            padding-right: 4px;
+            /* 防止内容贴滚动条 */
+        }
+
+        /* 滚动条美化 */
+        .hook-tooltip-content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .hook-tooltip-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 2px;
+        }
+
+        .hook-tooltip-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        .hook-tooltip-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .hook-tooltip-empty {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .close-action {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            cursor: pointer;
+            margin-left: auto;
+            transition: all 0.3s ease;
+        }
+
+        .close-action:hover {
+            background: rgba(234, 67, 53, 0.15);
+            color: var(--gemini-red);
+            transform: rotate(90deg);
+        }
+
+        .loading-text {
+            color: var(--text-muted);
+            font-size: 11px;
+            animation: blink 1.2s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 0.4;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* 🆕 Toggle Switch */
+        .toggle-container {
+            width: 32px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 9px;
+            margin-right: 8px;
+            /* Reduced margin */
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+            opacity: 0;
+            transform: translateX(-10px);
+            transition: opacity 0.25s ease 0.2s, transform 0.25s ease 0.2s, background 0.3s;
+            flex-shrink: 0;
+            display: none;
+            /* Hidden by default until loaded */
+        }
+
+        #capsule.expanded .toggle-container {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .toggle-container.active {
+            background: var(--gemini-green);
+            box-shadow: 0 0 10px rgba(52, 168, 83, 0.4);
+        }
+
+        .toggle-switch {
+            width: 14px;
+            height: 14px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .toggle-container.active .toggle-switch {
+            transform: translateX(14px);
+        }
+
+        .toggle-tooltip {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .toggle-container:hover .toggle-tooltip {
+            opacity: 1;
+        }
+
+        /* 🆕 Close Button */
+        .close-action {
+            width: 24px;
+            height: 24px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        #capsule.expanded .close-action {
+            display: flex;
+        }
+
+        .close-action:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--gemini-red);
+        }
+
+        /* 🆕 编辑器按钮 */
+        .editor-action {
+            width: 32px;
+            height: 32px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            /* 增加微弱背景色 */
+            color: var(--text-muted);
+            font-size: 16px;
+            /* 稍微缩小一点图标 */
+            cursor: pointer;
+            border-radius: 50%;
+            border: 1px solid var(--border-subtle);
+            /* 显式边框 */
+            transition: all 0.2s;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        #capsule.expanded .editor-action {
+            display: flex;
+        }
+
+        .editor-action:hover {
+            background: rgba(66, 133, 244, 0.15);
+            color: var(--gemini-blue);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="capsule-wrapper">
+        <div id="capsule">
+            <div class="grip" data-tauri-drag-region>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="8" cy="5" r="2.5" />
+                    <circle cx="8" cy="12" r="2.5" />
+                    <circle cx="8" cy="19" r="2.5" />
+                    <circle cx="16" cy="5" r="2.5" />
+                    <circle cx="16" cy="12" r="2.5" />
+                    <circle cx="16" cy="19" r="2.5" />
+                </svg>
+            </div>
+
+            <div class="status">
+                <span class="status-title">MCP Link</span>
+                <select class="status-select" id="project-selector">
+                    <option value="">Checking...</option>
+                </select>
+            </div>
+
+            <div class="persona-container" id="p-list">
+                <span class="loading-text">Loading...</span>
+            </div>
+
+
+
+            <div class="hook-indicator" id="hook-indicator">
+                <div class="hook-dot" id="hook-dot"></div>
+                <span class="hook-count" id="hook-count">0</span>
+
+                <div class="hook-tooltip" id="hook-tooltip">
+                    <div class="hook-tooltip-title">📌 PENDING HOOKS <span
+                            style="opacity:0.5;font-size:10px">v.1116</span></div>
+                    <div class="hook-tooltip-content" id="hook-tooltip-content">
+                        <span class="hook-tooltip-empty">无待办项</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🆕 Auto Launch Toggle -->
+            <div class="toggle-container" id="auto-open-toggle">
+                <div class="toggle-switch"></div>
+                <div class="toggle-tooltip">Auto Open: OFF</div>
+            </div>
+
+            <div class="editor-action" id="editor-btn" title="打开人格编辑器">👤</div>
+            <div class="close-action" id="close-btn" title="Close HUD">✕</div>
+        </div>
+
+
+    </div>
+
+    <script>
+        const { invoke } = window.__TAURI__.core;
+
+        // === 角色库配置 ===
+        // 🔧 主题配色表（可选的预设配置，用于手动覆盖）
+        const PERSONA_THEMES = {
+            "doraemon": { primary: "#38bdf8", secondary: "#7dd3fc", rgb: "56, 189, 248" },
+            "zhuge": { primary: "#a78bfa", secondary: "#c4b5fd", rgb: "167, 139, 250" },
+            "tangseng": { primary: "#fbbf24", secondary: "#fcd34d", rgb: "251, 191, 36" },
+            "trump": { primary: "#ef4444", secondary: "#f87171", rgb: "239, 68, 68" },
+            "tsundere_taiwan_girl": { primary: "#ec4899", secondary: "#f472b6", rgb: "236, 72, 153" },
+            "detective_conan": { primary: "#3b82f6", secondary: "#60a5fa", rgb: "59, 130, 246" },
+            "brother_monkey": { primary: "#f97316", secondary: "#fb923c", rgb: "249, 115, 22" }
+        };
+
+        // 🔧 基于角色名称哈希自动生成主题色（支持增量更新）
+        function generateThemeFromName(name) {
+            // 简单字符串哈希
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            // 使用 HSL 生成鲜艳的颜色（高饱和度，中等亮度）
+            const hue = Math.abs(hash % 360);
+            const primary = `hsl(${hue}, 75%, 55%)`;
+            const secondary = `hsl(${hue}, 75%, 65%)`;
+            // HSL 转 RGB（用于 CSS 变量）
+            const h = hue / 360;
+            const s = 0.75;
+            const l = 0.55;
+            const hue2rgb = (p, q, t) => {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1 / 6) return p + (q - p) * 6 * t;
+                if (t < 1 / 2) return q;
+                if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                return p;
+            };
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            const r = Math.round(hue2rgb(p, q, h + 1 / 3) * 255);
+            const g = Math.round(hue2rgb(p, q, h) * 255);
+            const b = Math.round(hue2rgb(p, q, h - 1 / 3) * 255);
+            return {
+                primary: primary,
+                secondary: secondary,
+                rgb: `${r}, ${g}, ${b}`
+            };
+        }
+
+        // 🔧 获取角色主题：优先使用预设，否则自动生成
+        function getPersonaTheme(name) {
+            return PERSONA_THEMES[name] || generateThemeFromName(name);
+        }
+
+        // 🔧 display_name → name 映射表（用于从数据库读取的persona匹配）
+        const DISPLAY_TO_NAME = {}; // 动态填充
+
+        // === 状态 ===
+        let isExpanded = false;
+        let collapseTimer = null;
+        let currentPersona = null;
+        let personaCount = 0;
+        let optimisticLockUntil = 0;
+        let currentServerId = null;
+
+        const capsule = document.getElementById('capsule');
+        const wrapper = document.getElementById('capsule-wrapper');
+        const selector = document.getElementById('project-selector');
+
+        // === 事件监听 ===
+        wrapper.addEventListener('mouseenter', () => {
+            clearTimeout(collapseTimer);
+            if (!isExpanded) expand();
+        });
+
+        wrapper.addEventListener('mouseleave', () => {
+            collapseTimer = setTimeout(() => collapse(), 600);
+        });
+
+        function expand() {
+            isExpanded = true;
+            capsule.classList.add('expanded');
+            capsule.classList.remove('collapsed');
+
+            // 计算逻辑：Grip(40) + Status(110) + Personas(Count*68) + Hook(60) + Toggle(40) + Close(30) + Padding(20)
+            const dynamicWidth = 350 + personaCount * 68;
+            capsule.style.width = dynamicWidth + 'px';
+            capsule.style.height = '64px';
+
+            // Tauri 窗口调整：预留 300px 给右侧 Tooltip
+            invoke('set_window_size', { width: dynamicWidth + 300.0, height: 350.0 });
+        }
+
+        function collapse() {
+            isExpanded = false;
+            capsule.classList.remove('expanded');
+            capsule.classList.add('collapsed');
+            // 圆球模式：48x48
+            capsule.style.width = '48px';
+            capsule.style.height = '48px';
+            setTimeout(() => {
+                if (!isExpanded) invoke('set_window_size', { width: 140.0, height: 140.0 });
+            }, 300);
+        }
+
+        // 🆕 Unknown 报警
+        function setAlertMode(isAlert) {
+            if (isAlert) {
+                wrapper.classList.add('alert');
+            } else {
+                wrapper.classList.remove('alert');
+            }
+        }
+
+        // === 数据同步与 UI 更新 ===
+        let autoOpen = true;
+        let lastPersonaListJson = ""; // 用于检测变更的缓存
+
+        async function refreshPersonas() {
+            try {
+                const list = await invoke('get_personas');
+                const listJson = JSON.stringify(list);
+
+                // 只有当数据真正变化时才重绘 UI，避免闪烁和干扰交互
+                if (listJson === lastPersonaListJson) return;
+                lastPersonaListJson = listJson;
+
+                personaCount = list.length;
+                const box = document.getElementById('p-list');
+                box.innerHTML = '';
+
+                // 清空旧映射
+                for (let key in DISPLAY_TO_NAME) delete DISPLAY_TO_NAME[key];
+
+                list.forEach(p => {
+                    const id = p.name.toLowerCase();
+                    const icon = p.avatar || '❓';
+                    const theme = getPersonaTheme(id);
+                    DISPLAY_TO_NAME[p.display_name] = id;
+
+                    const el = document.createElement('div');
+                    el.className = 'p-btn';
+                    el.dataset.id = id;
+                    el.style.setProperty('--btn-theme', theme.primary);
+                    el.style.setProperty('--btn-theme-rgb', theme.rgb);
+                    el.addEventListener('click', () => selectPersona(id));
+                    el.innerHTML = `<div class="p-icon">${icon}</div><div class="p-label">${p.display_name}</div>`;
+                    box.appendChild(el);
+                });
+
+                // 重新刷新高亮状态
+                if (currentPersona) highlight(currentPersona);
+
+                // 如果是在展开状态，可能需要调整宽度
+                if (isExpanded) {
+                    const dynamicWidth = 350 + personaCount * 68;
+                    capsule.style.width = dynamicWidth + 'px';
+                }
+            } catch (err) { console.error('Refresh personas failed:', err); }
+        }
+
+        async function init() {
+            try {
+                // 1. Get Config
+                try {
+                    const config = await invoke('get_config');
+                    autoOpen = config.auto_open;
+                    updateToggleUI();
+                } catch (e) {
+                    console.error('Config load failed', e);
+                }
+
+                await refreshPersonas();
+            } catch (err) { console.error('Init failed:', err); }
+        }
+
+        // Helper function to update the server selector
+        function updateSelector(servers) {
+            const currentVal = selector.value;
+            // 🔧 过滤无效服务器并显示项目名称（如果可用）或路径
+            const validServers = servers.filter(s => 
+                s.project_path && 
+                s.project_path !== 'Unknown' && 
+                s.project_path !== ''
+            );
+            
+            selector.innerHTML = validServers.map(s => {
+                const displayName = s.project_name || s.project_path.split(/[/\\]/).pop() || s.project_path;
+                return `<option value="${s.id}" ${s.id === currentServerId ? 'selected' : ''}>${displayName}</option>`;
+            }).join('');
+
+            if (!currentServerId || !validServers.find(s => s.id === currentServerId)) {
+                if (validServers.length > 0) {
+                    currentServerId = validServers[0].id;
+                    selector.value = currentServerId;
+                }
+            }
+            selector.classList.remove('offline');
+        }
+
+        async function loop() {
+            try {
+                // 0. Sync Persona Library (if changed)
+                await refreshPersonas();
+
+                // 1. Fetch servers to populate UI
+                const servers = await invoke('list_servers');
+
+                if (servers && servers.length > 0) {
+                    // 🆕 自动识别活跃 IDE 并切换（通过进程树匹配）
+                    try {
+                        const pidTree = await invoke('get_foreground_pid'); // 返回进程树数组
+                        // DEBUG: 显示进程树和所有服务器的 parent_pid
+                        console.log(`[AutoSwitch DEBUG] PID Tree: [${pidTree.join(', ')}], Servers: ${servers.map(s => `${s.project_name}:${s.parent_pid}`).join(', ')}`);
+
+                        if (pidTree && pidTree.length > 0) {
+                            // 查找匹配的服务器（检查 parent_pid 是否在进程树中）
+                            const matchedServer = servers.find(s =>
+                                s.parent_pid && pidTree.includes(s.parent_pid)
+                            );
+                            if (matchedServer && matchedServer.id !== currentServerId) {
+                                currentServerId = matchedServer.id;
+                                selector.value = currentServerId;
+                                await invoke('select_server', { id: currentServerId }); // 🆕 同步到后端
+                                console.log(`[AutoSwitch] Switched to ${matchedServer.project_name} (matched PID: ${matchedServer.parent_pid})`);
+                            }
+                        }
+                    } catch (e) { console.error('[AutoSwitch Error]', e); }
+
+                    updateSelector(servers);
+                    const currentServer = servers.find(s => s.id === selector.value) || servers[0];
+                    if (!currentServerId) currentServerId = currentServer.id;
+
+                    // 2. Version Breadcrumb
+                    const header = document.querySelector('.hook-tooltip-title');
+                    if (header && !header.innerHTML.includes('v.1116')) {
+                        header.innerHTML = '📌 Pending Hooks <span style="font-size:8px;opacity:0.5">v.1116</span>';
+                    }
+
+                    // 3. UI Indicators
+                    updateHook(currentServer.pending_hooks || 0, currentServer.hook_summary || '', currentServer);
+
+                    // 🆕 4. Unknown 状态报警
+                    const projectPath = currentServer.project_path || '';
+                    if (!projectPath || projectPath === 'Unknown' || projectPath.toLowerCase().includes('unknown')) {
+                        setAlertMode(true);
+                    } else {
+                        setAlertMode(false);
+                    }
+
+                    // 5. Persona Sync (Optimistic)
+                    if (Date.now() > optimisticLockUntil) {
+                        const rawPersona = (currentServer.persona || "").trim();
+                        let personaId = rawPersona.toLowerCase();
+                        if (DISPLAY_TO_NAME[rawPersona]) {
+                            personaId = DISPLAY_TO_NAME[rawPersona];
+                        } else if (DISPLAY_TO_NAME[rawPersona.toLowerCase()]) {
+                            personaId = DISPLAY_TO_NAME[rawPersona.toLowerCase()];
+                        }
+
+                        if (personaId && personaId !== currentPersona) {
+                            highlight(personaId);
+                        } else if (!personaId || personaId === "unknown" || personaId === "none") {
+                            if (currentPersona) highlight(null);
+                        }
+                    }
+                } else {
+                    selector.innerHTML = '<option value="">Offline</option>';
+                    selector.classList.add('offline');
+                    updateHook(0, '', null);
+                }
+            } catch (err) {
+                console.error('Loop error:', err);
+            }
+        }
+
+        function updateHook(count, summary, currentServer) {
+            const dot = document.getElementById('hook-dot');
+            const countEl = document.getElementById('hook-count');
+            const tooltipContent = document.getElementById('hook-tooltip-content');
+
+            countEl.innerText = count;
+            if (count > 0) {
+                dot.classList.add('active');
+                dot.classList.add('active');
+                tooltipContent.innerHTML = (summary || '').trim() ? summary.replace(/\n/g, '<br>') : `有 ${count} 个待办项`;
+                // DEBUG: Show persona and path
+                if (currentServer) {
+                    tooltipContent.innerHTML += `<hr style="margin:5px 0;opacity:0.3"><div style="font-size:10px;opacity:0.7">Path: ${currentServer.project_path}<br>Persona: ${currentServer.persona}</div>`;
+                }
+            } else {
+                dot.classList.remove('active');
+                tooltipContent.innerHTML = '<span class="hook-tooltip-empty">无待办项 ✓</span>';
+                // DEBUG: Show persona and path
+                if (currentServer) {
+                    tooltipContent.innerHTML += `<hr style="margin:5px 0;opacity:0.3"><div style="font-size:10px;opacity:0.7">Path: ${currentServer.project_path}<br>Persona: ${currentServer.persona}</div>`;
+                }
+            }
+        }
+
+        function highlight(name) {
+            currentPersona = name;
+            document.querySelectorAll('.p-btn').forEach(btn => {
+                const id = btn.dataset.id;
+                if (name && id === name) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // 🔧 主题配色：优先使用预设，否则自动生成
+            const theme = name ? getPersonaTheme(name) : DEFAULT_THEME;
+            document.documentElement.style.setProperty('--theme-primary', theme.primary);
+            document.documentElement.style.setProperty('--theme-secondary', theme.secondary);
+        }
+
+        // selectPersona 函数：点击人格按钮切换
+        async function selectPersona(name) {
+            if (name === currentPersona) return; // 已经是当前人格，无需切换
+
+            // 乐观更新 UI
+            highlight(name);
+            optimisticLockUntil = Date.now() + 3000; // 3秒内不接受服务器覆写
+
+            try {
+                const result = await invoke('update_persona', { persona: name });
+                console.log(`[Persona Switch] Success: ${result}`);
+            } catch (err) {
+                console.error('[Persona Switch] Failed:', err);
+                // 回滚 UI
+                loop();
+            }
+        }
+
+        document.getElementById('project-selector').addEventListener('change', async (e) => {
+            currentServerId = e.target.value;
+            try { await invoke('select_server', { id: currentServerId }); loop(); } catch (err) { }
+        });
+
+        document.getElementById('close-btn').addEventListener('click', () => invoke('exit_app'));
+
+        // 🆕 打开人格编辑器
+        document.getElementById('editor-btn').addEventListener('click', async () => {
+            try {
+                await invoke('open_persona_editor');
+            } catch (err) {
+                console.error('打开编辑器失败:', err);
+            }
+        });
+
+
+
+        // 🆕 Toggle Auto Open
+        const toggleEl = document.getElementById('auto-open-toggle');
+        const tooltipEl = toggleEl.querySelector('.toggle-tooltip');
+
+        toggleEl.addEventListener('click', () => {
+            autoOpen = !autoOpen;
+            updateToggleUI();
+            invoke('save_config', { config: { auto_open: autoOpen } });
+        });
+
+        function updateToggleUI() {
+            if (autoOpen) {
+                toggleEl.classList.add('active');
+                tooltipEl.innerText = "Auto Open: ON";
+            } else {
+                toggleEl.classList.remove('active');
+                tooltipEl.innerText = "Auto Open: OFF";
+            }
+        }
+
+        init();
+        setInterval(loop, 1500);
+        // 初始状态为圆球
+        capsule.classList.add('collapsed');
+        invoke('set_window_size', { width: 140.0, height: 140.0 });
+    </script>
+</body>
+
+</html>

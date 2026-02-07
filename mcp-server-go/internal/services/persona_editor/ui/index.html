@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Persona Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-glass: rgba(15, 15, 20, 0.88);
+            --gemini-blue: #4285f4;
+            --gemini-red: #ea4335;
+            --gemini-yellow: #fbbc04;
+            --gemini-green: #34a853;
+            --gemini-purple: #a855f7;
+            --gemini-pink: #ec4899;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: var(--bg-glass);
+            backdrop-filter: blur(24px) saturate(180%);
+        }
+
+        /* 顶部标签栏 */
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background: var(--gemini-blue);
+            border-color: var(--gemini-blue);
+            color: white;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* 左侧边栏 - 人格列表 */
+        .sidebar {
+            width: 200px;
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+        }
+
+        .persona-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .persona-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .persona-item.active {
+            background: rgba(66, 133, 244, 0.15);
+            border-left-color: var(--gemini-blue);
+        }
+
+        .persona-avatar {
+            font-size: 24px;
+        }
+
+        .persona-name {
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        /* 右侧编辑区 */
+        .editor-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Prompt 生成器 */
+        .prompt-section {
+            margin-bottom: 20px;
+        }
+
+        .prompt-section label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--gemini-blue);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--gemini-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3367d6;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-danger {
+            background: var(--gemini-red);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #d93025;
+        }
+
+        .btn-success {
+            background: var(--gemini-green);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #2d9e4e;
+        }
+
+        /* JSON 编辑器 */
+        .json-editor {
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* 新增人格表单 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--gemini-blue);
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* 预览区 */
+        .preview-box {
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .preview-box h3 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        .preview-content {
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Prompt Tools 专用样式 */
+        .prompts-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            gap: 16px;
+        }
+
+        .prompts-toolbar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .prompts-toolbar select {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            min-width: 180px;
+        }
+
+        .prompts-toolbar input {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .prompts-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .prompt-card {
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .prompt-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--gemini-blue);
+        }
+
+        .prompt-card.selected {
+            background: rgba(66, 133, 244, 0.15);
+            border-color: var(--gemini-blue);
+        }
+
+        .prompt-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .prompt-card-title {
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .prompt-card-tags {
+            display: flex;
+            gap: 6px;
+        }
+
+        .prompt-tag {
+            padding: 2px 8px;
+            background: var(--gemini-purple);
+            border-radius: 12px;
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        .prompt-card-preview {
+            font-size: 13px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .prompt-editor-section {
+            border-top: 1px solid var(--border-color);
+            padding-top: 16px;
+        }
+
+        .prompt-editor-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .prompt-editor-row input {
+            flex: 1;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="editor-container">
+        <!-- 标签栏 -->
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="list">📋 列表</button>
+            <button class="tab-btn" data-tab="prompt">🎯 角色生成</button>
+            <button class="tab-btn" data-tab="json">📝 JSON</button>
+            <button class="tab-btn" data-tab="new">➕ 新增</button>
+            <button class="tab-btn" data-tab="prompts">💡 Prompt 库</button>
+        </div>
+
+        <!-- 主内容 -->
+        <div class="main-content">
+            <!-- 左侧人格列表 -->
+            <div class="sidebar">
+                <div id="persona-list"></div>
+            </div>
+
+            <!-- 右侧编辑区 -->
+            <div class="editor-area">
+                <!-- 列表标签页 -->
+                <div class="tab-content active" id="tab-list">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👈</div>
+                        <p>请从左侧选择一个人格查看详情</p>
+                    </div>
+                </div>
+
+                <!-- Prompt 生成器标签页 -->
+                <div class="tab-content" id="tab-prompt">
+                    <div class="prompt-section">
+                        <label>描述你需要的人格：</label>
+                        <textarea id="prompt-input" placeholder="例如：需要一个严厉的代码审查人格，会仔细检查每一行代码..."></textarea>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="generatePrompt()">生成 Prompt</button>
+                            <button class="btn btn-secondary" onclick="copyPrompt()">复制</button>
+                        </div>
+                    </div>
+                    <div class="prompt-section">
+                        <label>生成的 Prompt：</label>
+                        <textarea id="prompt-output" readonly placeholder="点击生成按钮..."></textarea>
+                    </div>
+                </div>
+
+                <!-- JSON 编辑器标签页 -->
+                <div class="tab-content" id="tab-json">
+                    <div class="prompt-section">
+                        <label>JSON 配置：</label>
+                        <textarea id="json-editor" class="json-editor"
+                            placeholder='{"name": "...", "display_name": "...", ...}'></textarea>
+                        <div class="btn-group">
+                            <button class="btn btn-secondary" onclick="formatJSON()">格式化</button>
+                            <button class="btn btn-secondary" onclick="validateJSON()">校验</button>
+                            <button class="btn btn-success" onclick="saveJSON()">保存</button>
+                            <button class="btn btn-danger" onclick="deletePersona()">删除</button>
+                        </div>
+                    </div>
+                    <div class="preview-box" id="json-preview" style="display: none;">
+                        <h3>校验结果</h3>
+                        <div class="preview-content" id="json-preview-content"></div>
+                    </div>
+                </div>
+
+                <!-- 新增人格标签页 -->
+                <div class="tab-content" id="tab-new">
+                    <div class="form-group">
+                        <label>人格 ID（英文小写+下划线）</label>
+                        <input type="text" id="new-name" placeholder="例如：code_reviewer">
+                        <div class="hint">唯一的英文标识符</div>
+                    </div>
+                    <div class="form-group">
+                        <label>显示名称</label>
+                        <input type="text" id="new-display-name" placeholder="例如：代码审查员">
+                    </div>
+                    <div class="form-group">
+                        <label>头像（单个 emoji）</label>
+                        <input type="text" id="new-avatar" placeholder="例如：🔍">
+                    </div>
+                    <div class="form-group">
+                        <label>唤醒词（逗号分隔）</label>
+                        <textarea id="new-aliases" placeholder="例如：审查员,reviewer,代码审查"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>核心指令（每行一条）</label>
+                        <textarea id="new-must" placeholder="例如：仔细检查代码风格&#10;指出潜在bug&#10;提供改进建议"></textarea>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="createPersona()">创建人格</button>
+                        <button class="btn btn-secondary" onclick="clearForm()">清空</button>
+                    </div>
+                </div>
+
+                <!-- Prompt Tools 标签页 -->
+                <div class="tab-content" id="tab-prompts">
+                    <div class="prompts-container">
+                        <!-- 工具栏 -->
+                        <div class="prompts-toolbar">
+                            <select id="project-selector" onchange="loadPrompts()">
+                                <option value="global">🌐 Global</option>
+                            </select>
+                            <input type="text" id="prompt-search" placeholder="搜索 Prompt..." oninput="filterPrompts()">
+                            <button class="btn btn-primary" onclick="newPromptItem()">+ 新建</button>
+                        </div>
+
+                        <!-- Prompt 列表 -->
+                        <div class="prompts-list" id="prompts-list">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">💡</div>
+                                <p>暂无 Prompt，点击"新建"创建第一个</p>
+                            </div>
+                        </div>
+
+                        <!-- 编辑区 -->
+                        <div class="prompt-editor-section" id="prompt-editor" style="display: none;">
+                            <div class="prompt-editor-row">
+                                <input type="text" id="edit-prompt-title" placeholder="Prompt 标题">
+                                <input type="text" id="edit-prompt-tags" placeholder="标签 (逗号分隔)">
+                            </div>
+                            <div class="prompt-section">
+                                <textarea id="edit-prompt-content" placeholder="Prompt 内容..."
+                                    style="min-height: 150px;"></textarea>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-success" onclick="savePromptItem()">保存</button>
+                                <button class="btn btn-danger" onclick="deletePromptItem()">删除</button>
+                                <button class="btn btn-secondary" onclick="cancelEditPrompt()">取消</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { invoke } = window.__TAURI__.core;
+
+        let currentPersona = null;
+        let allPersonas = [];
+
+        // 初始化
+        async function init() {
+            await loadPersonas();
+            setupTabs();
+
+            // 初始化 Prompt Tools
+            await loadProjects();
+            await loadPrompts();
+        }
+
+        // 加载人格列表
+        async function loadPersonas() {
+            try {
+                allPersonas = await invoke('get_personas');
+                renderPersonaList();
+            } catch (e) {
+                console.error('加载人格列表失败:', e);
+            }
+        }
+
+        // 渲染人格列表
+        function renderPersonaList() {
+            const listEl = document.getElementById('persona-list');
+            listEl.innerHTML = allPersonas.map(p => `
+                <div class="persona-item ${currentPersona?.name === p.name ? 'active' : ''}"
+                     onclick="selectPersona('${p.name}')">
+                    <span class="persona-avatar">${p.avatar || '🎭'}</span>
+                    <span class="persona-name">${p.display_name}</span>
+                </div>
+            `).join('');
+        }
+
+        // 选择人格
+        async function selectPersona(name) {
+            currentPersona = allPersonas.find(p => p.name === name);
+            renderPersonaList();
+
+            // 填充 JSON 编辑器
+            if (currentPersona) {
+                document.getElementById('json-editor').value = JSON.stringify(currentPersona, null, 2);
+                switchTab('json');
+            }
+        }
+
+        // 设置标签页切换
+        function setupTabs() {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    switchTab(btn.dataset.tab);
+                });
+            });
+        }
+
+        // 切换标签页
+        function switchTab(tabName) {
+            // 更新按钮状态
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabName);
+            });
+
+            // 更新内容显示
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('active', content.id === `tab-${tabName}`);
+            });
+        }
+
+        // 生成 Prompt
+        async function generatePrompt() {
+            const description = document.getElementById('prompt-input').value;
+            if (!description.trim()) {
+                alert('请输入描述');
+                return;
+            }
+
+            try {
+                const prompt = await invoke('generate_prompt', { description });
+                document.getElementById('prompt-output').value = prompt;
+            } catch (e) {
+                console.error('生成失败:', e);
+                alert('生成失败: ' + e);
+            }
+        }
+
+        // 复制 Prompt
+        function copyPrompt() {
+            const output = document.getElementById('prompt-output');
+            output.select();
+            document.execCommand('copy');
+            alert('已复制到剪贴板');
+        }
+
+        // 格式化 JSON
+        async function formatJSON() {
+            const jsonStr = document.getElementById('json-editor').value;
+            try {
+                const formatted = await invoke('format_json', { jsonStr });
+                document.getElementById('json-editor').value = formatted;
+            } catch (e) {
+                alert('格式化失败: ' + e);
+            }
+        }
+
+        // 校验 JSON
+        async function validateJSON() {
+            const jsonStr = document.getElementById('json-editor').value;
+            const previewEl = document.getElementById('json-preview');
+            const contentEl = document.getElementById('json-preview-content');
+
+            try {
+                await invoke('validate_json', { jsonStr });
+                const persona = JSON.parse(jsonStr);
+                contentEl.innerHTML = `
+                    <p style="color: var(--gemini-green);">✓ JSON 格式正确</p>
+                    <p><strong>名称：</strong>${persona.display_name}</p>
+                    <p><strong>头像：</strong>${persona.avatar}</p>
+                    <p><strong>唤醒词：</strong>${persona.aliases?.join(', ') || '-'}</p>
+                `;
+                previewEl.style.display = 'block';
+            } catch (e) {
+                contentEl.innerHTML = `<p style="color: var(--gemini-red);">✗ ${e}</p>`;
+                previewEl.style.display = 'block';
+            }
+        }
+
+        // 保存 JSON
+        async function saveJSON() {
+            const jsonStr = document.getElementById('json-editor').value;
+            try {
+                const persona = JSON.parse(jsonStr);
+                await invoke('save_persona', { persona });
+                alert('保存成功');
+                await loadPersonas();
+            } catch (e) {
+                alert('保存失败: ' + e);
+            }
+        }
+
+        // 删除人格
+        async function deletePersona() {
+            if (!currentPersona) {
+                alert('请先选择一个人格');
+                return;
+            }
+
+            if (!confirm(`确定要删除 "${currentPersona.display_name}" 吗？`)) {
+                return;
+            }
+
+            try {
+                await invoke('delete_persona', { name: currentPersona.name });
+                alert('删除成功');
+                currentPersona = null;
+                await loadPersonas();
+                document.getElementById('json-editor').value = '';
+            } catch (e) {
+                alert('删除失败: ' + e);
+            }
+        }
+
+        // 创建人格
+        async function createPersona() {
+            const name = document.getElementById('new-name').value.trim();
+            const displayName = document.getElementById('new-display-name').value.trim();
+            const avatar = document.getElementById('new-avatar').value.trim();
+            const aliasesStr = document.getElementById('new-aliases').value.trim();
+            const mustStr = document.getElementById('new-must').value.trim();
+
+            if (!name || !displayName) {
+                alert('请填写必填项');
+                return;
+            }
+
+            const persona = {
+                name,
+                display_name: displayName,
+                avatar: avatar || '🎭',
+                aliases: aliasesStr ? aliasesStr.split(',').map(s => s.trim()) : [],
+                style_must: mustStr ? mustStr.split('\n').map(s => s.trim()).filter(s => s) : [],
+                style_signature: [`[init] 你好，我是${displayName}`],
+                style_taboo: []
+            };
+
+            try {
+                await invoke('save_persona', { persona });
+                alert('创建成功');
+                clearForm();
+                await loadPersonas();
+            } catch (e) {
+                alert('创建失败: ' + e);
+            }
+        }
+
+        // 清空表单
+        function clearForm() {
+            document.getElementById('new-name').value = '';
+            document.getElementById('new-display-name').value = '';
+            document.getElementById('new-avatar').value = '';
+            document.getElementById('new-aliases').value = '';
+            document.getElementById('new-must').value = '';
+        }
+
+        // ========== Prompt Tools 逻辑 ==========
+        let allPrompts = [];
+        let allProjects = [];
+        let currentPromptId = null;
+        let selectedProject = 'global';
+
+        // 加载项目列表
+        async function loadProjects() {
+            try {
+                const projects = await invoke('list_projects');
+                allProjects = projects;
+
+                const selector = document.getElementById('project-selector');
+                selector.innerHTML = '<option value="global">🌐 Global</option>';
+
+                projects.forEach(proj => {
+                    // 使用正确的字段名：project_path 和 project_name
+                    const projectPath = proj.project_path || proj.path || '';
+                    const projectName = proj.project_name || proj.name || '';
+                    
+                    // 跳过无效项目（路径为空或名称为 undefined）
+                    if (!projectPath || projectName === 'undefined' || !projectName) {
+                        return;
+                    }
+                    
+                    const option = document.createElement('option');
+                    option.value = projectPath;
+                    option.textContent = `📁 ${projectName}`;
+                    selector.appendChild(option);
+                });
+            } catch (e) {
+                console.error('加载项目列表失败:', e);
+            }
+        }
+
+        // 加载 Prompts
+        async function loadPrompts() {
+            const selector = document.getElementById('project-selector');
+            selectedProject = selector.value;
+
+            try {
+                const prompts = await invoke('list_prompts', {
+                    projectPath: selectedProject
+                });
+                allPrompts = prompts;
+                renderPrompts();
+            } catch (e) {
+                console.error('加载 Prompts 失败:', e);
+                allPrompts = [];
+                renderPrompts();
+            }
+        }
+
+        // 渲染 Prompt 列表
+        function renderPrompts() {
+            const listEl = document.getElementById('prompts-list');
+
+            if (allPrompts.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💡</div>
+                        <p>暂无 Prompt，点击"新建"创建第一个</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = allPrompts.map(p => `
+                <div class="prompt-card ${currentPromptId === p.id ? 'selected' : ''}" 
+                     onclick="selectPrompt(${p.id})">
+                    <div class="prompt-card-header">
+                        <div class="prompt-card-title">${escapeHtml(p.title)}</div>
+                        <div class="prompt-card-tags">
+                            ${(p.tags || []).map(tag =>
+                `<span class="prompt-tag">${escapeHtml(tag)}</span>`
+            ).join('')}
+                        </div>
+                    </div>
+                    <div class="prompt-card-preview">${escapeHtml(p.content.substring(0, 100))}</div>
+                </div>
+            `).join('');
+        }
+
+        // 选择 Prompt
+        function selectPrompt(id) {
+            const prompt = allPrompts.find(p => p.id === id);
+            if (!prompt) return;
+
+            currentPromptId = id;
+            renderPrompts();
+
+            // 填充编辑器
+            document.getElementById('edit-prompt-title').value = prompt.title;
+            document.getElementById('edit-prompt-content').value = prompt.content;
+            document.getElementById('edit-prompt-tags').value = (prompt.tags || []).join(', ');
+
+            // 显示编辑器
+            document.getElementById('prompt-editor').style.display = 'block';
+        }
+
+        // 新建 Prompt
+        function newPromptItem() {
+            currentPromptId = null;
+            document.getElementById('edit-prompt-title').value = '';
+            document.getElementById('edit-prompt-content').value = '';
+            document.getElementById('edit-prompt-tags').value = '';
+            document.getElementById('prompt-editor').style.display = 'block';
+        }
+
+        // 保存 Prompt
+        async function savePromptItem() {
+            const title = document.getElementById('edit-prompt-title').value.trim();
+            const content = document.getElementById('edit-prompt-content').value.trim();
+            const tagsStr = document.getElementById('edit-prompt-tags').value.trim();
+
+            if (!title || !content) {
+                alert('标题和内容不能为空');
+                return;
+            }
+
+            const snippet = {
+                id: currentPromptId,
+                title: title,
+                content: content,
+                tags: tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(t => t) : []
+            };
+
+            try {
+                await invoke('save_prompt_snippet', {
+                    projectPath: selectedProject,
+                    snippet: snippet
+                });
+                alert('保存成功');
+                await loadPrompts();
+                cancelEditPrompt();
+            } catch (e) {
+                alert('保存失败: ' + e);
+            }
+        }
+
+        // 删除 Prompt
+        async function deletePromptItem() {
+            if (!currentPromptId) {
+                alert('请先选择一个 Prompt');
+                return;
+            }
+
+            if (!confirm('确定要删除这个 Prompt 吗？')) {
+                return;
+            }
+
+            try {
+                await invoke('delete_prompt_snippet', {
+                    projectPath: selectedProject,
+                    id: currentPromptId
+                });
+                alert('删除成功');
+                await loadPrompts();
+                cancelEditPrompt();
+            } catch (e) {
+                alert('删除失败: ' + e);
+            }
+        }
+
+        // 取消编辑
+        function cancelEditPrompt() {
+            currentPromptId = null;
+            document.getElementById('prompt-editor').style.display = 'none';
+        }
+
+        // 搜索过滤
+        function filterPrompts() {
+            const searchTerm = document.getElementById('prompt-search').value.toLowerCase();
+            const cards = document.querySelectorAll('.prompt-card');
+
+            cards.forEach(card => {
+                const title = card.querySelector('.prompt-card-title').textContent.toLowerCase();
+                const preview = card.querySelector('.prompt-card-preview').textContent.toLowerCase();
+
+                if (title.includes(searchTerm) || preview.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 启动
+        init();
+    </script>
+</body>
+
+</html>
