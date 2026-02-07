@@ -14,7 +14,7 @@
 
 如果你想让gemini、glm什么LLM的达到claude的项目实际水平，那可以试试。
 
-PS：文档都是Gemini写的写的还可以。
+PS：文档都是Gemini写的，还可以。
 
 ---
 
