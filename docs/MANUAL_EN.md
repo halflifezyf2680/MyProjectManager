@@ -1,0 +1,586 @@
+# MPM Complete Manual
+
+> **From "Chatting" to "Controlled Delivery"**
+
+[中文](MANUAL.md) | English
+
+---
+
+## Table of Contents
+
+1. [Core Concepts](#1-core-concepts)
+2. [Tool Reference](#2-tool-reference)
+3. [Best Practices](#3-best-practices)
+4. [Performance Comparison](#4-performance-comparison)
+5. [FAQ](#5-faq)
+
+---
+
+## 1. Core Concepts
+
+### 1.1 What Problems Does MPM Solve?
+
+Three major pain points in AI coding:
+
+| Pain Point | Symptom | MPM Solution |
+|------------|---------|--------------|
+| **Context Lost** | AI doesn't know where code is | `code_search` AST precision |
+| **Blind Changes** | Fixed here, broke there | `code_impact` call chain analysis |
+| **Memory Loss** | Start from zero every session | `memo` + `system_recall` |
+
+### 1.2 Three-Layer Architecture
+
+```
+Perception      Scheduling      Memory
+────────────────────────────────────────
+code_search     manager_analyze   memo
+code_impact     task_chain        system_recall
+project_map                       known_facts
+```
+
+- **Perception**: See code (locate, analyze, map)
+- **Scheduling**: Manage tasks (plan, execute, checkpoint)
+- **Memory**: Store experience (memo, recall, rules)
+
+### 1.3 AST Indexing Principles
+
+MPM uses a Rust AST engine to parse code, maintaining three core fields:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `canonical_id` | Globally unique identifier | `func:core/auth.go::Login` |
+| `scope_path` | Hierarchical scope | `AuthManager::Login` |
+| `callee_id` | Precise call chain | `func:db/query.go::Exec` |
+
+**Why it matters**: Eliminates "same-name function" ambiguity, `code_impact` can precisely track multi-layer call chains.
+
+---
+
+## 2. Tool Reference
+
+### 2.1 Code Location (3 tools)
+
+#### project_map - Project Map
+
+**Triggers**: `mpm map`, `mpm structure`
+
+**Purpose**: First step when taking over a new project, quickly build understanding.
+
+**Parameters**:
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `scope` | Directory scope | Entire project |
+| `level` | `structure`(dirs) / `symbols`(symbols) | `symbols` |
+
+**Output Example**:
+```
+📊 Project Stats: 156 files, 892 symbols
+
+🔴 High Complexity Hotspots:
+  - SessionManager::Handle (Score: 85)
+  - PaymentService::Process (Score: 72)
+
+📁 src/core/ (12 files)
+  ├── session.go
+  │   └── func GetSession (L45-80) 🔴
+  └── config.go
+      └── func LoadConfig (L20-40) 🟢
+```
+
+---
+
+#### code_search - Symbol Lookup
+
+**Triggers**: `mpm search`, `mpm locate`
+
+**Purpose**: Precisely locate function/class definitions, no string guessing.
+
+**Parameters**:
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `query` | Search keyword | Required |
+| `scope` | Directory scope | Entire project |
+| `search_type` | `any`/`function`/`class` | `any` |
+
+**5-Layer Fallback Search**:
+```
+1. Exact match
+2. Prefix/suffix match
+3. Substring match
+4. Levenshtein distance
+5. Stem match
+```
+
+**Output Example**:
+```
+✅ Exact Definition:
+  func Login @ src/auth/login.go L45-67
+  Signature: func Login(ctx context.Context, cred Credentials) (*Token, error)
+
+🔍 Similar Symbols:
+  [func] LoginUser @ src/api/user.go (score: 0.85)
+```
+
+---
+
+#### code_impact - Impact Analysis
+
+**Triggers**: `mpm impact`, `mpm dependency`
+
+**Purpose**: **Must do before modifications**, assess impact scope.
+
+**Parameters**:
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `symbol_name` | Symbol name | Required |
+| `direction` | `backward`(who calls me)/`forward`(I call whom)/`both` | `backward` |
+
+**Output Example**:
+```
+CODE_IMPACT_REPORT: GetSession
+RISK_LEVEL: high
+AFFECTED_NODES: 15
+
+#### POLLUTION_PROPAGATION_GRAPH
+LAYER_1_DIRECT (4):
+  - [api/handler.go:45-80] SYMBOL: HandleRequest
+  - [service/auth.go:100-130] SYMBOL: Authenticate
+
+LAYER_2_INDIRECT (11):
+  - [main.go:50-100] SYMBOL: main
+  ... and 9 more
+
+#### ACTION_REQUIRED_CHECKLIST
+- [ ] MODIFY_TARGET: [core/session.go:45-80]
+- [ ] VERIFY_CALLER: [api/handler.go:45-80]
+- [ ] VERIFY_CALLER: [service/auth.go:100-130]
+```
+
+---
+
+### 2.2 Task Management (5 tools)
+
+#### manager_analyze - Task Intelligence Briefing
+
+**Triggers**: `mpm analyze`, `mpm mg`
+
+**Purpose**: Entry point for complex tasks, two-step self-iteration generates intelligence briefing.
+
+**Parameters**:
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `task_description` | Original task description | ✅ |
+| `intent` | `DEBUG`/`DEVELOP`/`REFACTOR`/`RESEARCH` | ✅ |
+| `symbols` | Related symbol list | ✅ |
+| `step` | 1=analyze, 2=generate strategy | Default 1 |
+
+**Two-Step Process**:
+```
+Step 1: Analyze
+  → AST search to locate symbols
+  → Load historical experience
+  → Complexity assessment
+  → Return task_id
+
+Step 2: Generate Strategy
+  → Dynamically generate tactical suggestions based on analysis
+  → Return strategic_handoff
+```
+
+---
+
+#### task_chain - Adaptive Task Chain
+
+**Triggers**: `mpm chain`, `mpm taskchain`
+
+**Purpose**: A near-complete **Agent framework**, each step is an independent checkpoint with dynamic plan adjustment.
+
+**Core Capabilities**:
+
+| Mode | Description | Parameters |
+|------|-------------|------------|
+| `step` | Initialize + auto-start first step | `task_id`, `plan`, `description` |
+| `start` | Start specified step | `task_id`, `step_number` |
+| `complete` | Complete step + **mandatory summary** | `task_id`, `step_number`, `summary` |
+| `insert` | Insert step (decimal numbering 1.1, 1.2) | `task_id`, `after`, `insert_plan` |
+| `update` | Replace subsequent steps (replan) | `task_id`, `from`, `update_plan` |
+| `delete` | Delete steps (single or all remaining) | `task_id`, `step_to_delete` or `delete_scope="remaining"` |
+| `finish` | Early termination (goal achieved) | `task_id` |
+
+**Decision Point Mechanism**:
+
+After each step completes, the system returns a decision interface:
+
+```
+══════════════════════════════════════════════════════════════
+                【Step 1.0 Complete】Search Symbols
+══════════════════════════════════════════════════════════════
+
+**Summary**: Found 3 Login related functions...
+
+---
+
+## 🤔 Decision Time
+
+1️⃣ **Continue Next** (Step 2.0)
+   task_chain(mode="start", task_id="MIGRATION", step_number=2.0)
+
+2️⃣ **Insert New Step** (after Step 1.0)
+   task_chain(mode="insert", task_id="MIGRATION", after=1.0, insert_plan=[...])
+
+3️⃣ **Delete Remaining** (goal already achieved)
+   task_chain(mode="delete", task_id="MIGRATION", delete_scope="remaining")
+```
+
+**Why Stronger Than Regular Todo**:
+- **State Machine Driven**: `todo → in_progress → complete`
+- **Mandatory Summary**: Each step must submit summary, knowledge沉淀
+- **Dynamic Planning**: Insert/delete/replace steps anytime
+- **Smart Termination**: End early when goal is achieved
+
+---
+
+#### Hook Series (3 tools)
+
+| Tool | Trigger | Purpose |
+|------|---------|---------|
+| `manager_create_hook` | `mpm suspend` | Create todo/checkpoint |
+| `manager_list_hooks` | `mpm todolist` | View todos |
+| `manager_release_hook` | `mpm release` | Complete todo |
+
+**Hook Feature**: Supports `expires_in_hours` expiration time.
+
+---
+
+### 2.3 Memory System (3 tools)
+
+#### memo - Change Documentation
+
+**Triggers**: `mpm memo`, `mpm record`
+
+**Purpose**: **Must call after any code change**, record "why changed".
+
+**Parameters**:
+| Field | Description | Example |
+|-------|-------------|---------|
+| `category` | Category | `fix`/`develop`/`decision`/`pitfall` |
+| `entity` | Changed entity | `session.go` |
+| `act` | Action | `fix idempotency issue` |
+| `path` | File path | `core/session.go` |
+| `content` | Detailed explanation | Why this change |
+
+**Example**:
+```javascript
+memo(items=[{
+  category: "fix",
+  entity: "GetSession",
+  act: "add idempotency check",
+  path: "core/session.go",
+  content: "prevent duplicate requests from creating multiple sessions"
+}])
+```
+
+---
+
+#### system_recall - Memory Retrieval
+
+**Triggers**: `mpm recall`, `mpm history`
+
+**Purpose**: Retrieve past decisions and changes, **"Wide-In Strict-Out"** strategy.
+
+**Parameters**:
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `keywords` | Keywords (multi-field fuzzy match) | Required |
+| `category` | Type filter | All |
+| `limit` | Return count | 20 |
+
+**Wide-In Strict-Out Strategy**:
+- **Wide-In**: OR match across `Entity` / `Act` / `Content` fields
+- **Strict-Out**: Filter by `category` + limit by `limit`
+- **Refined Output**: Categorized display (Known Facts first) + timestamp (recent→old)
+
+**Output Example**:
+```
+## 📌 Known Facts (2)
+
+- **[pitfall]** Must check dependencies before modifying session logic _(ID: 1, 2026-01-15)_
+
+## 📝 Memos (3)
+
+- **[42] 2026-02-15 14:30** (fix) add idempotency check: prevent duplicate requests...
+- **[41] 2026-02-14 10:00** (develop) add timeout parameter: adapt to Alibaba Cloud...
+```
+
+---
+
+#### known_facts - Rules Archive
+
+**Triggers**: `mpm rule`, `mpm pitfall`
+
+**Purpose**: Archive verified rules, `manager_analyze` auto-loads them.
+
+**Example**:
+```javascript
+known_facts(type="pitfall", summarize="Must check dependencies before modifying session logic")
+```
+
+---
+
+### 2.4 Enhancement Tools (3 tools)
+
+#### persona - Personality Management
+
+**Triggers**: `mpm persona`
+
+**Design Philosophy**: Personality is a **Buff mechanism**, not persistent config.
+
+| Feature | Description |
+|---------|-------------|
+| **Temporary** | Switch personality = temporary buff, done when finished |
+| **No Persistence** | Not stored in DB, not cross-session |
+| **Health Indicator** | Blurred personality = context diluted, needs attention |
+
+**Context Dilution Detection**:
+
+Personality expression strength serves as a **signal** for context health:
+
+| Personality Expression | Meaning | Suggestion |
+|----------------------|---------|------------|
+| Distinct style | Context healthy | Continue current session |
+| Blurred expression | Context diluted | New session / compact / input prompt to converge attention |
+
+**Operation Modes**:
+
+| Mode | Description | Example |
+|------|-------------|---------|
+| `list` | List all personalities | `persona(mode="list")` |
+| `activate` | Activate personality | `persona(mode="activate", name="zhuge")` |
+| `create` | Create personality | `persona(mode="create", name="my_expert", ...)` |
+| `update` | Update personality | `persona(mode="update", name="my_expert", ...)` |
+| `delete` | Delete personality | `persona(mode="delete", name="my_expert")` |
+
+**Built-in Personalities**:
+| Personality | Code | Style Strength | Use Case |
+|-------------|------|----------------|----------|
+| Zhuge Liang | `zhuge` | Medium | Architecture design, code review |
+| Trump | `trump` | Strong | Brainstorming, break deadlock |
+| Doraemon | `doraemon` | Medium | Beginner guidance, tutorial writing |
+| Detective Conan | `detective_conan` | Medium | Bug investigation, log analysis |
+
+---
+
+#### skill_load - Skill Loading
+
+**Triggers**: `mpm skill`
+
+**Purpose**: Load domain expert guides (e.g., Refactoring, Go-expert).
+
+---
+
+#### open_timeline - Project Evolution
+
+**Triggers**: `mpm timeline`
+
+**Purpose**: Generate HTML visualization of project evolution history.
+
+---
+
+## 3. Best Practices
+
+### 3.1 Standard Workflow
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│    Plan     │ ──▶ │   Execute   │ ──▶ │   Record    │
+│ manager_    │     │ Code Change │     │    memo     │
+│ analyze     │     │             │     │             │
+└─────────────┘     └─────────────┘     └─────────────┘
+       │                   ▲                   │
+       │           ┌───────┴───────┐           │
+       └──────────▶│  Perception   │◀──────────┘
+                   │ code_search   │
+                   │ code_impact   │
+                   └───────────────┘
+```
+
+### 3.2 Golden Rules
+
+| Rule | Description |
+|------|-------------|
+| **Locate Before Modify** | `code_search` before changing code |
+| **Assess Before Big Change** | `code_impact` to see impact |
+| **Record Every Change** | Must call `memo` after modification |
+| **Read Log on New Session** | Read `dev-log.md` to restore context |
+
+### 3.3 Standard Code Modification Flow
+
+```
+1. code_search(query="target_function")      # Locate
+2. code_impact(symbol_name="target_function") # Assess impact
+3. (Read code)
+4. (Execute modification)
+5. memo(items=[{...}])                        # Record
+```
+
+### 3.4 Naming Conventions (Vibe Coding)
+
+**Three Rules**:
+
+1. **Symbol Anchoring**: Reject generic words
+   - ❌ `data = get_data()`
+   - ✅ `verified_payload = auth_service.fetch_verified_payload()`
+
+2. **Prefix as Domain**: Use `domain_action_target`
+   - `ui_btn_submit`, `api_req_login`, `db_conn_main`
+
+3. **Searchability First**: Longer names, fewer conflicts
+   - `transaction_unique_trace_id` is easier to search than `id`
+
+---
+
+## 4. Performance Comparison
+
+### 4.1 Case 1: Symbol Location
+
+**Task**: Analyze `memo` tool implementation logic
+
+| Metric | Without MPM | With MPM | Improvement |
+|--------|-------------|----------|-------------|
+| Steps | 12+ | 3 | **300%** |
+| Tool calls | 10+ | 2 | **400%** |
+| First-step accuracy | 0% | 100% | **∞** |
+
+**Reason**: `manager_analyze` directly returns precise coordinates (file:line), no trial and error.
+
+---
+
+### 4.2 Case 2: Impact Assessment
+
+**Task**: Assess risk of modifying `session.go`
+
+| Dimension | Without MPM | With MPM |
+|-----------|-------------|----------|
+| Risk perception | Based on local guessing | **AST call chain analysis** |
+| Token consumption | Read entire files (4000+) | Map summary (~800) |
+| Output | Vague questions | **Precise modification checklist** |
+
+---
+
+### 4.3 Case 3: Project Understanding
+
+**Task**: Cold-start understanding of a 300+ file project
+
+| Metric | Without MPM | With MPM |
+|--------|-------------|----------|
+| Total time | 40 seconds | **15 seconds** |
+| Tool calls | 4+ | 1 |
+| Cognitive path | Config→Source→Assembly | **Direct to structured map** |
+
+---
+
+### 4.4 Case 4: Disaster Recovery
+
+**Scenario**: Accidentally ran `git reset --hard`, lost a day of uncommitted code
+
+| Dimension | Git | MPM Database |
+|-----------|-----|--------------|
+| Record trigger | Explicit commit | **Memo on every change** |
+| Coverage | Physical text | **Intent + Semantics** |
+| Recovery cost | Manual rewrite | **Guided recovery** |
+
+**Conclusion**: MPM protects the development process, Git protects the code.
+
+---
+
+## 5. FAQ
+
+### Q1: When should I call `initialize_project`?
+
+**Only in these cases**:
+- Restarted MCP Server / IDE
+- First time using MPM
+
+**If just starting a new conversation**: Just read `dev-log.md`, no need to reinitialize.
+
+---
+
+### Q2: What's the difference between `code_search` and IDE search?
+
+| Dimension | IDE Search | `code_search` |
+|-----------|------------|---------------|
+| Match method | Text level | **AST symbol level** |
+| Same-name ambiguity | Cannot distinguish | **canonical_id precision** |
+| Context | Need manual viewing | **Auto-return signature** |
+
+**Suggestion**: Use `code_search` to locate, then IDE to read in detail.
+
+---
+
+### Q3: What is the DICE complexity algorithm?
+
+Calculates complexity based on **precise call chains**:
+
+```
+complexity_score = 
+    (out_degree × 2.0) +   // Fan-out: how many it calls
+    (in_degree × 1.0)      // Fan-in: how many depend on it
+```
+
+**Rating Levels**:
+| Score | Level | Suggestion |
+|-------|-------|------------|
+| 0-20 | Simple | Modify directly |
+| 20-50 | Medium | Check callers first |
+| 50-80 | High | Run `code_impact` first |
+| 80+ | Extreme | Need detailed planning |
+
+---
+
+### Q4: Where is data stored?
+
+| Data | Location |
+|------|----------|
+| AST index | `.mcp-data/symbols.db` (SQLite) |
+| Memos | `.mcp-data/mcp_memory.db` |
+| Human-readable log | `dev-log.md` |
+| Project rules | `_MPM_PROJECT_RULES.md` |
+
+**Suggestion**: Add `.mcp-data/` to `.gitignore`, but `dev-log.md` can be committed.
+
+---
+
+### Q5: Which languages are supported?
+
+| Language | Extensions |
+|----------|------------|
+| Python | .py |
+| Go | .go |
+| JavaScript/TypeScript | .js, .ts, .tsx, .mjs |
+| Rust | .rs |
+| Java | .java |
+| C/C++ | .c, .cpp, .h, .hpp |
+
+---
+
+## Trigger Quick Reference
+
+| Category | Triggers | Tool |
+|----------|----------|------|
+| System | `mpm init` | `initialize_project` |
+| Location | `mpm search` `mpm locate` | `code_search` |
+| Analysis | `mpm impact` `mpm dependency` | `code_impact` |
+| Map | `mpm map` `mpm structure` | `project_map` |
+| Task | `mpm analyze` `mpm mg` | `manager_analyze` |
+| Chain | `mpm chain` `mpm taskchain` | `task_chain` |
+| Todo | `mpm suspend` `mpm todolist` `mpm release` | Hook Series |
+| Memory | `mpm memo` `mpm recall` `mpm rule` | Memory Series |
+| Persona | `mpm persona` | `persona` |
+| Skill | `mpm skilllist` `mpm loadskill` | Skill Series |
+| Visual | `mpm timeline` | `open_timeline` |
+
+---
+
+*MPM Manual v2.0 - 2026-02*
+
+
