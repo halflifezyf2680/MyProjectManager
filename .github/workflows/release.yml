@@ -31,7 +31,7 @@ jobs:
             ext: ''
           - os: darwin
             arch: amd64
-            runner: macos-13
+            runner: macos-latest
             ext: ''
           - os: darwin
             arch: arm64
@@ -49,6 +49,11 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: mcp-server-go/internal/services/ast_indexer_rust
 
       - name: Build Go server
         working-directory: mcp-server-go
