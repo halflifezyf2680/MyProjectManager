@@ -77,12 +77,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1
 
 指向编译产物：`mcp-server-go/bin/mpm-go(.exe)`
 
+跨平台二进制包配置请看：`QUICKSTART.md`
+
 ### 3. 开始使用
 
 ```text
 初始化项目
 帮我分析修复 Login 回调幂等问题的方案
 ```
+
+首次 `mpm 初始化` 会在项目根目录生成 `_MPM_PROJECT_RULES.md`，用于注入项目级规则，让 LLM 更稳定地按你的工程规范工作。
 
 ---
 
@@ -170,7 +174,9 @@ MPM 的 AST 引擎维护 **精确调用链**：
 ## 文档
 
 - **[MANUAL.md](./docs/MANUAL.md)** - 完整手册（工具详解 + 最佳实践 + Case Study）
+- **[QUICKSTART.md](./QUICKSTART.md)** - 跨平台安装与 MCP 客户端配置
 - **[README_EN.md](./README_EN.md)** - English Version
+- **[QUICKSTART_EN.md](./QUICKSTART_EN.md)** - English Quickstart
 - **[MANUAL_EN.md](./docs/MANUAL_EN.md)** - English Manual
 
 ---

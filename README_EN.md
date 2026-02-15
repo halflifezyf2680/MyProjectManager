@@ -77,12 +77,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1
 
 Point to the build output: `mcp-server-go/bin/mpm-go(.exe)`
 
+For cross-platform binary package setup, see: `QUICKSTART_EN.md`
+
 ### 3. Start Using
 
 ```text
 Initialize project
 Help me analyze and fix the Login callback idempotency issue
 ```
+
+The first `mpm init` generates `_MPM_PROJECT_RULES.md` in your project root. This file carries project-level rules so the LLM can follow your engineering conventions more consistently.
 
 ---
 
@@ -170,6 +174,7 @@ See [MANUAL_EN.md](./docs/MANUAL_EN.md#performance-comparison) for details.
 ## Documentation
 
 - **[MANUAL_EN.md](./docs/MANUAL_EN.md)** - Complete manual (tools + best practices + case studies)
+- **[QUICKSTART_EN.md](./QUICKSTART_EN.md)** - Cross-platform installation and MCP client setup
 - **[README.md](./README.md)** - 中文版
 - **[MANUAL.md](./docs/MANUAL.md)** - 中文版手册
 

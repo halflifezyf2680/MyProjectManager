@@ -75,6 +75,7 @@ jobs:
           cp README.md release/mpm-${{ matrix.os }}-${{ matrix.arch }}/
           cp README_EN.md release/mpm-${{ matrix.os }}-${{ matrix.arch }}/
           cp QUICKSTART.md release/mpm-${{ matrix.os }}-${{ matrix.arch }}/
+          cp QUICKSTART_EN.md release/mpm-${{ matrix.os }}-${{ matrix.arch }}/
           cp mcp-config-example.json release/mpm-${{ matrix.os }}-${{ matrix.arch }}/
           cp -r docs release/mpm-${{ matrix.os }}-${{ matrix.arch }}/
           
